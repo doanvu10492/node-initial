@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  nodejs:
+    container_name: nodejs
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nodejs
+    env_file: .env
+    networks:
+      - traefik
+    ports:
+      - "3002:3001"
+    environment:
+      PORT: 3002
+      MONGO_URI: mongodb://mongo/environment-management
+    links:
+      - mongo
+    depends_on:
+      - mongo
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.backend=nodejs"
+      - "traefik.port=3001"
+      - "traefik.frontend.entryPoints=http"
+      - "traefik.frontend.rule=PathPrefix:/api/v1/;Host:environment.localhost"
+    
+    volumes:
+      - .:/src
+    command: bash -c "npm install && npm run dev"
+
+  redis:
+    image: redis:alpine
+    networks:
+      - traefik
+
+  mongo:
+    container_name: mongodb
+    image: mongo:4.2.3-bionic
+    networks:
+      - traefik
+    restart: always
+    expose:
+      - "27019"
+    ports:
+      - "27019:27017"
+    volumes:     
+      - ./data/db:/data/db
+    env_file: .env
+
+networks:
+  traefik:
+    external:
+      name: traefik_proxy
